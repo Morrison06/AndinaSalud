@@ -16,104 +16,153 @@ import pe.upeu.andinasalud.presentation.components.*
 @Composable
 fun CitasScreen(
     viewModel: CitasViewModel,
+    puedeSolicitar: Boolean,
     onDetalle: (Long) -> Unit,
     onSolicitar: () -> Unit
 ) {
-    val state by viewModel.uiState.collectAsState()
+
+    val state by
+    viewModel.uiState.collectAsState()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+        verticalArrangement =
+            Arrangement.spacedBy(10.dp)
     ) {
 
         OutlinedTextField(
             value = state.busqueda,
-            onValueChange = viewModel::onBusquedaChange,
-            modifier = Modifier.fillMaxWidth(),
+            onValueChange =
+                viewModel::onBusquedaChange,
+            modifier =
+                Modifier.fillMaxWidth(),
             leadingIcon = {
+
                 Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Buscar"
+                    imageVector =
+                        Icons.Default.Search,
+                    contentDescription =
+                        "Buscar"
                 )
             },
             label = {
-                Text("Buscar especialidad o médico")
+
+                Text(
+                    "Buscar especialidad o médico"
+                )
             },
             singleLine = true
         )
 
         LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier =
+                Modifier.fillMaxWidth(),
+            horizontalArrangement =
+                Arrangement.spacedBy(8.dp)
         ) {
 
             item {
+
                 FilterChip(
-                    selected = state.soloHoy,
-                    onClick = viewModel::onHoyChange,
+                    selected =
+                        state.soloHoy,
+                    onClick =
+                        viewModel::onHoyChange,
                     label = {
                         Text("Hoy")
                     }
                 )
             }
 
-            items(FiltroCitas.entries.size) { index ->
-                val filtro = FiltroCitas.entries[index]
+            items(
+                FiltroCitas.entries.size
+            ) { index ->
+
+                val filtro =
+                    FiltroCitas.entries[index]
 
                 FilterChip(
-                    selected = state.filtro == filtro,
+                    selected =
+                        state.filtro == filtro,
                     onClick = {
-                        viewModel.onFiltroChange(filtro)
+                        viewModel
+                            .onFiltroChange(
+                                filtro
+                            )
                     },
                     label = {
-                        Text(filtro.etiqueta)
+                        Text(
+                            filtro.etiqueta
+                        )
                     }
                 )
             }
         }
 
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
         ) {
 
-            when (val fase = state.fase) {
+            when (
+                val fase = state.fase
+            ) {
 
                 FaseCitas.Cargando -> {
+
                     EstadoCarga()
                 }
 
                 FaseCitas.Vacio -> {
+
                     EstadoVacio(
-                        titulo = "No hay citas",
-                        descripcion = "Prueba otro filtro o término de búsqueda"
+                        titulo =
+                            "No hay citas",
+                        descripcion =
+                            "Prueba otro filtro o término de búsqueda"
                     )
                 }
 
                 is FaseCitas.Error -> {
+
                     EstadoError(
-                        mensaje = fase.mensaje,
-                        onReintentar = viewModel::cargar
+                        mensaje =
+                            fase.mensaje,
+                        onReintentar =
+                            viewModel::cargar
                     )
                 }
 
                 is FaseCitas.Contenido -> {
+
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(bottom = 88.dp)
+                        verticalArrangement =
+                            Arrangement
+                                .spacedBy(10.dp),
+                        contentPadding =
+                            PaddingValues(
+                                bottom = 100.dp
+                            )
                     ) {
+
                         items(
                             items = fase.citas,
-                            key = { it.id }
+                            key = {
+                                it.id
+                            }
                         ) { cita ->
 
                             CitaCard(
                                 cita = cita,
                                 onClick = {
-                                    onDetalle(cita.id)
+                                    onDetalle(
+                                        cita.id
+                                    )
                                 }
                             )
                         }
@@ -121,13 +170,48 @@ fun CitasScreen(
                 }
             }
 
-            Button(
-                onClick = onSolicitar,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
+            Column(
+                modifier =
+                    Modifier
+                        .align(
+                            Alignment.BottomEnd
+                        )
+                        .padding(16.dp),
+                horizontalAlignment =
+                    Alignment.End
             ) {
-                Text("Solicitar cita")
+
+                if (!puedeSolicitar) {
+
+                    Text(
+                        text =
+                            "Máximo 3 citas programadas",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .error
+                    )
+
+                    Spacer(
+                        Modifier.height(4.dp)
+                    )
+                }
+
+                Button(
+                    onClick =
+                        onSolicitar,
+                    enabled =
+                        puedeSolicitar
+                ) {
+
+                    Text(
+                        "Solicitar cita"
+                    )
+                }
             }
         }
     }

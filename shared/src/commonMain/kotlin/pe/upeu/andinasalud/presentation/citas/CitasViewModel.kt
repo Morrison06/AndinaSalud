@@ -11,6 +11,7 @@ import pe.upeu.andinasalud.domain.model.Cita
 import pe.upeu.andinasalud.domain.model.EstadoCita
 import pe.upeu.andinasalud.domain.time.Reloj
 import pe.upeu.andinasalud.domain.usecase.ObtenerCitasUseCase
+import pe.upeu.andinasalud.domain.usecase.ReglasCita
 
 class CitasViewModel(
     private val obtenerCitas: ObtenerCitasUseCase,
@@ -19,28 +20,41 @@ class CitasViewModel(
 
     private var originales: List<Cita> = emptyList()
 
-    private val _uiState = MutableStateFlow(CitasUiState())
-    val uiState: StateFlow<CitasUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(
+        CitasUiState()
+    )
+
+    val uiState: StateFlow<CitasUiState> =
+        _uiState.asStateFlow()
 
     init {
         cargar()
     }
 
     fun cargar() = viewModelScope.launch {
-        _uiState.update {
-            it.copy(fase = FaseCitas.Cargando)
+
+        _uiState.update { state ->
+            state.copy(
+                fase = FaseCitas.Cargando
+            )
         }
 
         obtenerCitas().fold(
-            onSuccess = {
-                originales = it
+
+            onSuccess = { citas ->
+
+                originales = citas
+
                 aplicarFiltros()
             },
-            onFailure = {
+
+            onFailure = { error ->
+
                 _uiState.update { state ->
                     state.copy(
                         fase = FaseCitas.Error(
-                            it.message ?: "No se pudieron cargar las citas"
+                            error.message
+                                ?: "No se pudieron cargar las citas"
                         )
                     )
                 }
@@ -48,68 +62,158 @@ class CitasViewModel(
         )
     }
 
-    fun onBusquedaChange(valor: String) {
-        _uiState.update {
-            it.copy(busqueda = valor)
+    fun onBusquedaChange(
+        valor: String
+    ) {
+
+        _uiState.update { state ->
+            state.copy(
+                busqueda = valor
+            )
         }
+
         aplicarFiltros()
     }
 
-    fun onFiltroChange(filtro: FiltroCitas) {
-        _uiState.update {
-            it.copy(filtro = filtro)
+    fun onFiltroChange(
+        filtro: FiltroCitas
+    ) {
+
+        _uiState.update { state ->
+            state.copy(
+                filtro = filtro
+            )
         }
+
         aplicarFiltros()
     }
 
     fun onHoyChange() {
-        _uiState.update {
-            it.copy(soloHoy = !it.soloHoy)
+
+        _uiState.update { state ->
+            state.copy(
+                soloHoy = !state.soloHoy
+            )
         }
+
         aplicarFiltros()
     }
 
     private fun aplicarFiltros() {
+
         val state = _uiState.value
-        val consulta = normalizar(state.busqueda)
-        val hoy = reloj.ahora().fecha
 
-        val filtradas = originales.filter { cita ->
+        val consulta =
+            normalizar(
+                state.busqueda
+            )
 
-            val cumpleEstado = when (state.filtro) {
-                FiltroCitas.Todas -> true
-                FiltroCitas.Programadas ->
-                    cita.estado is EstadoCita.Programada
+        val hoy =
+            reloj.ahora().fecha
 
-                FiltroCitas.Atendidas ->
-                    cita.estado is EstadoCita.Atendida
+        /*
+         * SC-B:
+         * La cantidad de citas Programada
+         * se calcula usando TODAS las citas,
+         * no solamente las filtradas.
+         */
+        val cantidadProgramadas =
+            ReglasCita.cantidadProgramadas(
+                originales
+            )
 
-                FiltroCitas.Canceladas ->
-                    cita.estado is EstadoCita.Cancelada
+        /*
+         * RN-02:
+         * La decisión de si puede solicitar
+         * otra cita viene del dominio.
+         */
+        val puedeSolicitar =
+            !ReglasCita.limiteProgramadasAlcanzado(
+                originales
+            )
+
+        val filtradas =
+            originales.filter { cita ->
+
+                /*
+                 * Filtro por estado
+                 */
+                val cumpleEstado =
+                    when (state.filtro) {
+
+                        FiltroCitas.Todas ->
+                            true
+
+                        FiltroCitas.Programadas ->
+                            cita.estado is EstadoCita.Programada
+
+                        FiltroCitas.Atendidas ->
+                            cita.estado is EstadoCita.Atendida
+
+                        FiltroCitas.Canceladas ->
+                            cita.estado is EstadoCita.Cancelada
+                    }
+
+                /*
+                 * Búsqueda por especialidad
+                 * o nombre del médico.
+                 */
+                val cumpleBusqueda =
+                    consulta.isBlank() ||
+                            normalizar(
+                                cita.especialidad
+                            ).contains(
+                                consulta
+                            ) ||
+                            normalizar(
+                                cita.medico.nombre
+                            ).contains(
+                                consulta
+                            )
+
+                /*
+                 * SC-A:
+                 * Si soloHoy está activado,
+                 * únicamente se muestran
+                 * citas de la fecha actual.
+                 */
+                val cumpleHoy =
+                    !state.soloHoy ||
+                            cita.fecha == hoy
+
+                cumpleEstado &&
+                        cumpleBusqueda &&
+                        cumpleHoy
             }
 
-            val cumpleBusqueda =
-                consulta.isBlank() ||
-                        normalizar(cita.especialidad).contains(consulta) ||
-                        normalizar(cita.medico.nombre).contains(consulta)
+        _uiState.value =
+            state.copy(
 
-            val cumpleHoy =
-                !state.soloHoy || cita.fecha == hoy
+                fase =
+                    if (filtradas.isEmpty()) {
 
-            cumpleEstado && cumpleBusqueda && cumpleHoy
-        }
+                        FaseCitas.Vacio
 
-        _uiState.value = state.copy(
-            fase = if (filtradas.isEmpty()) {
-                FaseCitas.Vacio
-            } else {
-                FaseCitas.Contenido(filtradas)
-            }
-        )
+                    } else {
+
+                        FaseCitas.Contenido(
+                            filtradas
+                        )
+                    },
+
+                cantidadProgramadas =
+                    cantidadProgramadas,
+
+                puedeSolicitar =
+                    puedeSolicitar
+            )
     }
 
-    private fun normalizar(texto: String): String =
-        texto
+    private fun normalizar(
+        texto: String
+    ): String {
+
+        return texto
             .lowercase()
             .replace("á", "a")
             .replace("é", "e")
@@ -118,4 +222,5 @@ class CitasViewModel(
             .replace("ú", "u")
             .replace("ü", "u")
             .replace("ñ", "n")
+    }
 }
