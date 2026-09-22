@@ -48,6 +48,17 @@ fun CitasScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
+            item {
+                FilterChip(
+                    selected = state.soloHoy,
+                    onClick = viewModel::onHoyChange,
+                    label = {
+                        Text("Hoy")
+                    }
+                )
+            }
+
             items(FiltroCitas.entries.size) { index ->
                 val filtro = FiltroCitas.entries[index]
 
