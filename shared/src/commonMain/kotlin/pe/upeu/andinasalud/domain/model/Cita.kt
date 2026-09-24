@@ -9,7 +9,9 @@ data class Cita(
     val fecha: Fecha,
     val hora: Hora,
     val motivo: String,
+    val modalidad: ModalidadAtencion,
     val estado: EstadoCita
 ) {
-    val fechaHora: FechaHora get() = FechaHora(fecha, hora)
+    val fechaHora: FechaHora
+        get() = FechaHora(fecha, hora)
 }
