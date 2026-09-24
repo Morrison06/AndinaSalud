@@ -10,7 +10,8 @@ data class Cita(
     val hora: Hora,
     val motivo: String,
     val modalidad: ModalidadAtencion,
-    val estado: EstadoCita
+    val estado: EstadoCita,
+    val reprogramaciones: List<Reprogramacion> = emptyList()
 ) {
     val fechaHora: FechaHora
         get() = FechaHora(fecha, hora)

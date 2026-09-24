@@ -14,6 +14,7 @@ import pe.upeu.andinasalud.domain.usecase.ObtenerCatalogoUseCase
 import pe.upeu.andinasalud.domain.usecase.ObtenerCitasUseCase
 import pe.upeu.andinasalud.domain.usecase.ObtenerDetalleCitaUseCase
 import pe.upeu.andinasalud.domain.usecase.ObtenerPacienteUseCase
+import pe.upeu.andinasalud.domain.usecase.ReprogramarCitaUseCase
 import pe.upeu.andinasalud.domain.usecase.SolicitarCitaUseCase
 import pe.upeu.andinasalud.presentation.citas.CitasViewModel
 import pe.upeu.andinasalud.presentation.detalle.DetalleCitaViewModel
@@ -63,6 +64,13 @@ val domainModule = module {
             get()
         )
     }
+
+    factory {
+        ReprogramarCitaUseCase(
+            get(),
+            get()
+        )
+    }
 }
 
 val presentationModule = module {
@@ -83,6 +91,7 @@ val presentationModule = module {
 
     viewModel {
         DetalleCitaViewModel(
+            get(),
             get(),
             get()
         )
@@ -108,6 +117,7 @@ fun initKoin(
     configuracionAdicional: KoinApplication.() -> Unit = {}
 ) {
     startKoin {
+
         configuracionAdicional()
 
         modules(

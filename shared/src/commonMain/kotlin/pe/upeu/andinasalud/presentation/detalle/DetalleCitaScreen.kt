@@ -1,6 +1,8 @@
 package pe.upeu.andinasalud.presentation.detalle
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Videocam
@@ -25,17 +27,25 @@ fun DetalleCitaScreen(
 
     val state by viewModel.uiState.collectAsState()
 
-    var confirmar by remember {
+    var confirmarCancelacion by remember {
+        mutableStateOf(false)
+    }
+
+    var mostrarReprogramacion by remember {
         mutableStateOf(false)
     }
 
     when (val s = state) {
 
         DetalleUiState.Cargando -> {
-            EstadoCarga("Cargando detalle…")
+
+            EstadoCarga(
+                "Cargando detalle…"
+            )
         }
 
         is DetalleUiState.Error -> {
+
             EstadoError(
                 s.mensaje,
                 viewModel::recargar
@@ -46,37 +56,60 @@ fun DetalleCitaScreen(
 
             val cita = s.cita
 
+            LaunchedEffect(s.mensaje) {
+
+                if (
+                    s.mensaje ==
+                    "Cita reprogramada correctamente"
+                ) {
+                    mostrarReprogramacion = false
+                }
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(
+                        rememberScrollState()
+                    )
                     .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement =
+                    Arrangement.spacedBy(14.dp)
             ) {
 
                 Text(
                     text = cita.especialidad,
-                    style = MaterialTheme.typography.headlineSmall
+                    style =
+                        MaterialTheme
+                            .typography
+                            .headlineSmall
                 )
 
                 Text(
-                    text = "Médico: ${cita.medico.nombre}"
+                    text =
+                        "Médico: ${cita.medico.nombre}"
                 )
 
                 Text(
-                    text = "Sede: ${cita.sede.nombre}"
+                    text =
+                        "Sede: ${cita.sede.nombre}"
                 )
 
                 Text(
-                    text = "Fecha: ${cita.fecha.formatoCorto()}"
+                    text =
+                        "Fecha: ${cita.fecha.formatoCorto()}"
                 )
 
                 Text(
-                    text = "Hora: ${cita.hora.formato()}"
+                    text =
+                        "Hora: ${cita.hora.formato()}"
                 )
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement =
+                        Arrangement.spacedBy(8.dp),
+                    verticalAlignment =
+                        Alignment.CenterVertically
                 ) {
 
                     Icon(
@@ -89,35 +122,43 @@ fun DetalleCitaScreen(
                                 ModalidadAtencion.Teleconsulta ->
                                     Icons.Default.Videocam
                             },
-                        contentDescription = cita.modalidad.etiqueta()
+                        contentDescription =
+                            cita.modalidad.etiqueta()
                     )
 
                     Text(
-                        text = "Modalidad: ${cita.modalidad.etiqueta()}"
+                        text =
+                            "Modalidad: ${cita.modalidad.etiqueta()}"
                     )
                 }
 
                 Text(
-                    text = "Estado: ${cita.estado.etiqueta()}"
+                    text =
+                        "Estado: ${cita.estado.etiqueta()}"
                 )
 
                 Text(
-                    text = "Motivo: ${cita.motivo}"
+                    text =
+                        "Motivo: ${cita.motivo}"
                 )
 
-                when (val estado = cita.estado) {
+                when (
+                    val estado = cita.estado
+                ) {
 
                     is EstadoCita.Atendida -> {
 
                         Text(
-                            text = "Indicaciones: ${estado.indicaciones}"
+                            text =
+                                "Indicaciones: ${estado.indicaciones}"
                         )
                     }
 
                     is EstadoCita.Cancelada -> {
 
                         Text(
-                            text = "Motivo de cancelación: ${estado.motivo}"
+                            text =
+                                "Motivo de cancelación: ${estado.motivo}"
                         )
                     }
 
@@ -125,13 +166,78 @@ fun DetalleCitaScreen(
 
                         Text(
                             text =
-                                if (estado.recordatorioActivo) {
+                                if (
+                                    estado.recordatorioActivo
+                                ) {
                                     "Recordatorio activo"
                                 } else {
                                     "Recordatorio desactivado"
                                 }
                         )
                     }
+                }
+
+                if (
+                    cita.reprogramaciones
+                        .isNotEmpty()
+                ) {
+
+                    HorizontalDivider()
+
+                    Text(
+                        text =
+                            "Historial de reprogramación",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleMedium
+                    )
+
+                    cita.reprogramaciones
+                        .forEachIndexed {
+                                indice,
+                                cambio ->
+
+                            ElevatedCard(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                            ) {
+
+                                Column(
+                                    modifier =
+                                        Modifier
+                                            .padding(14.dp),
+                                    verticalArrangement =
+                                        Arrangement
+                                            .spacedBy(5.dp)
+                                ) {
+
+                                    Text(
+                                        text =
+                                            "Cambio ${indice + 1}",
+                                        style =
+                                            MaterialTheme
+                                                .typography
+                                                .labelLarge
+                                    )
+
+                                    Text(
+                                        text =
+                                            "Anterior: " +
+                                                    "${cambio.fechaAnterior.formatoCorto()} " +
+                                                    "${cambio.horaAnterior.formato()}"
+                                    )
+
+                                    Text(
+                                        text =
+                                            "Nueva: " +
+                                                    "${cambio.fechaNueva.formatoCorto()} " +
+                                                    "${cambio.horaNueva.formato()}"
+                                    )
+                                }
+                            }
+                        }
                 }
 
                 s.mensaje?.let {
@@ -144,36 +250,233 @@ fun DetalleCitaScreen(
                     )
                 }
 
-                if (cita.estado is EstadoCita.Programada) {
+                if (
+                    cita.estado is
+                            EstadoCita.Programada
+                ) {
 
                     Button(
                         onClick = {
-                            confirmar = true
+
+                            viewModel
+                                .limpiarFormularioReprogramacion()
+
+                            mostrarReprogramacion =
+                                true
                         },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor =
-                                MaterialTheme.colorScheme.error
-                        )
+                        modifier =
+                            Modifier.fillMaxWidth()
                     ) {
 
                         Text(
-                            text = "Cancelar cita"
+                            "Reprogramar cita"
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            confirmarCancelacion =
+                                true
+                        },
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    ) {
+
+                        Text(
+                            "Cancelar cita",
+                            color =
+                                MaterialTheme
+                                    .colorScheme
+                                    .error
                         )
                     }
                 }
             }
+
+            if (mostrarReprogramacion) {
+
+                AlertDialog(
+                    onDismissRequest = {
+
+                        mostrarReprogramacion =
+                            false
+
+                        viewModel
+                            .limpiarFormularioReprogramacion()
+                    },
+
+                    title = {
+
+                        Text(
+                            "Reprogramar cita"
+                        )
+                    },
+
+                    text = {
+
+                        Column(
+                            verticalArrangement =
+                                Arrangement
+                                    .spacedBy(10.dp)
+                        ) {
+
+                            Text(
+                                text =
+                                    "Cita actual: " +
+                                            "${cita.fecha.formatoCorto()} " +
+                                            "${cita.hora.formato()}"
+                            )
+
+                            OutlinedTextField(
+                                value =
+                                    s.fechaReprogramacion,
+
+                                onValueChange =
+                                    viewModel::
+                                    cambiarFechaReprogramacion,
+
+                                modifier =
+                                    Modifier.fillMaxWidth(),
+
+                                label = {
+                                    Text(
+                                        "Nueva fecha"
+                                    )
+                                },
+
+                                placeholder = {
+                                    Text(
+                                        "AAAA-MM-DD"
+                                    )
+                                },
+
+                                singleLine = true,
+
+                                isError =
+                                    s.erroresReprogramacion
+                                        .fecha != null,
+
+                                supportingText = {
+
+                                    s.erroresReprogramacion
+                                        .fecha
+                                        ?.let {
+                                            Text(it)
+                                        }
+                                }
+                            )
+
+                            OutlinedTextField(
+                                value =
+                                    s.horaReprogramacion,
+
+                                onValueChange =
+                                    viewModel::
+                                    cambiarHoraReprogramacion,
+
+                                modifier =
+                                    Modifier.fillMaxWidth(),
+
+                                label = {
+                                    Text(
+                                        "Nueva hora"
+                                    )
+                                },
+
+                                placeholder = {
+                                    Text(
+                                        "HH:mm"
+                                    )
+                                },
+
+                                singleLine = true,
+
+                                isError =
+                                    s.erroresReprogramacion
+                                        .hora != null,
+
+                                supportingText = {
+
+                                    s.erroresReprogramacion
+                                        .hora
+                                        ?.let {
+                                            Text(it)
+                                        }
+                                }
+                            )
+
+                            s.erroresReprogramacion
+                                .general
+                                ?.let {
+
+                                    Text(
+                                        text = it,
+                                        color =
+                                            MaterialTheme
+                                                .colorScheme
+                                                .error
+                                    )
+                                }
+                        }
+                    },
+
+                    confirmButton = {
+
+                        TextButton(
+                            onClick = {
+                                viewModel.reprogramar()
+                            },
+                            enabled =
+                                !s.reprogramando
+                        ) {
+
+                            Text(
+                                if (
+                                    s.reprogramando
+                                ) {
+                                    "Guardando…"
+                                } else {
+                                    "Reprogramar"
+                                }
+                            )
+                        }
+                    },
+
+                    dismissButton = {
+
+                        TextButton(
+                            onClick = {
+
+                                mostrarReprogramacion =
+                                    false
+
+                                viewModel
+                                    .limpiarFormularioReprogramacion()
+                            }
+                        ) {
+
+                            Text(
+                                "Volver"
+                            )
+                        }
+                    }
+                )
+            }
         }
     }
 
-    if (confirmar) {
+    if (confirmarCancelacion) {
 
         AlertDialog(
             onDismissRequest = {
-                confirmar = false
+                confirmarCancelacion =
+                    false
             },
 
             title = {
-                Text("Cancelar cita")
+                Text(
+                    "Cancelar cita"
+                )
             },
 
             text = {
@@ -187,13 +490,16 @@ fun DetalleCitaScreen(
                 TextButton(
                     onClick = {
 
-                        confirmar = false
+                        confirmarCancelacion =
+                            false
 
                         viewModel.cancelar()
                     }
                 ) {
 
-                    Text("Sí, cancelar")
+                    Text(
+                        "Sí, cancelar"
+                    )
                 }
             },
 
@@ -201,11 +507,14 @@ fun DetalleCitaScreen(
 
                 TextButton(
                     onClick = {
-                        confirmar = false
+                        confirmarCancelacion =
+                            false
                     }
                 ) {
 
-                    Text("Volver")
+                    Text(
+                        "Volver"
+                    )
                 }
             }
         )

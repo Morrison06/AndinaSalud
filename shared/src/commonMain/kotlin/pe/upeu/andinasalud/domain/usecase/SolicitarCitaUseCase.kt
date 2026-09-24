@@ -41,100 +41,59 @@ class SolicitarCitaUseCase(
         modalidad: ModalidadAtencion
     ): Result<Cita> = runCatching {
 
-        var errores = ErroresSolicitud(
-            especialidad =
-                if (especialidad.isBlank()) {
-                    "Selecciona una especialidad"
-                } else {
-                    null
-                },
+        val citas =
+            repository.obtenerCitas()
 
-            sede =
-                if (sedeId.isBlank()) {
-                    "Selecciona una sede"
-                } else {
-                    null
-                },
+        val validacionProgramacion =
+            ReglasCita.validarProgramacion(
+                fechaTexto = fechaTexto,
+                horaTexto = horaTexto,
+                ahora = reloj.ahora(),
+                citas = citas
+            )
 
-            fecha =
-                if (fechaTexto.isBlank()) {
-                    "La fecha es obligatoria"
-                } else {
-                    null
-                },
-
-            hora =
-                if (horaTexto.isBlank()) {
-                    "La hora es obligatoria"
-                } else {
-                    null
-                },
-
-            motivo =
-                when {
-                    motivo.isBlank() ->
-                        "El motivo es obligatorio"
-
-                    !ReglasCita.motivoValido(motivo) ->
-                        "El motivo debe tener entre 10 y 200 caracteres"
-
-                    else ->
+        val errores =
+            ErroresSolicitud(
+                especialidad =
+                    if (especialidad.isBlank()) {
+                        "Selecciona una especialidad"
+                    } else {
                         null
-                }
-        )
+                    },
 
-        val fecha = Fecha.parse(fechaTexto)
-        val hora = Hora.parse(horaTexto)
+                sede =
+                    if (sedeId.isBlank()) {
+                        "Selecciona una sede"
+                    } else {
+                        null
+                    },
 
-        if (
-            fechaTexto.isNotBlank() &&
-            fecha == null
-        ) {
-            errores = errores.copy(
-                fecha = "Usa el formato AAAA-MM-DD"
+                fecha =
+                    validacionProgramacion
+                        .errorFecha,
+
+                hora =
+                    validacionProgramacion
+                        .errorHora,
+
+                motivo =
+                    when {
+                        motivo.isBlank() ->
+                            "El motivo es obligatorio"
+
+                        !ReglasCita.motivoValido(motivo) ->
+                            "El motivo debe tener entre 10 y 200 caracteres"
+
+                        else ->
+                            null
+                    }
             )
-        }
-
-        if (
-            horaTexto.isNotBlank() &&
-            hora == null
-        ) {
-            errores = errores.copy(
-                hora = "Usa el formato HH:mm"
-            )
-        }
 
         if (errores.hayErrores) {
             throw SolicitudInvalidaException(
                 errores
             )
         }
-
-        fecha!!
-        hora!!
-
-        val momento =
-            FechaHora(
-                fecha,
-                hora
-            )
-
-        if (
-            !ReglasCita.esFutura(
-                momento,
-                reloj.ahora()
-            )
-        ) {
-            throw SolicitudInvalidaException(
-                ErroresSolicitud(
-                    fecha =
-                        "La cita debe ser posterior al momento actual"
-                )
-            )
-        }
-
-        val citas =
-            repository.obtenerCitas()
 
         if (
             ReglasCita
@@ -150,28 +109,23 @@ class SolicitarCitaUseCase(
             )
         }
 
-        if (
-            ReglasCita.hayDuplicada(
-                citas,
-                fecha,
-                hora
-            )
-        ) {
-            throw SolicitudInvalidaException(
-                ErroresSolicitud(
-                    hora =
-                        "Ya tienes una cita programada en esa fecha y hora"
-                )
-            )
-        }
+        val fecha =
+            validacionProgramacion
+                .fecha!!
+
+        val hora =
+            validacionProgramacion
+                .hora!!
 
         val catalogo =
             repository.obtenerCatalogo()
 
         val sede =
-            catalogo.sedes.firstOrNull {
-                it.id == sedeId
-            }
+            catalogo
+                .sedes
+                .firstOrNull {
+                    it.id == sedeId
+                }
                 ?: throw SolicitudInvalidaException(
                     ErroresSolicitud(
                         sede =
@@ -180,10 +134,13 @@ class SolicitarCitaUseCase(
                 )
 
         val medico =
-            catalogo.medicos.firstOrNull {
-                it.especialidad == especialidad &&
-                        sede.id in it.sedes
-            }
+            catalogo
+                .medicos
+                .firstOrNull {
+                    it.especialidad ==
+                            especialidad &&
+                            sede.id in it.sedes
+                }
                 ?: throw SolicitudInvalidaException(
                     ErroresSolicitud(
                         general =
